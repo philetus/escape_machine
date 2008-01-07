@@ -6,20 +6,47 @@ class Maze( Canvas ):
     """window with an escape machine maze
     """
     DIRECTIONS = ( (1,0), (0,1), (-1,0), (0,-1) )
-    
     BACKGROUND = (0.0, 0.0, 0.0, 1.0)
     
-    def __init__( self, gui, rows=5, columns=7, room_size=80 ):
+    def __init__( self, gui, rows=5, columns=7,
+                  completeness=20, connectedness=20,
+                  room_size=80 ):
         Canvas.__init__( self, gui ) # superclass constructor
 
         self.rows = rows
         self.columns = columns
         self.room_size = room_size
+        self.completeness = completeness
+        self.connectedness = connectedness
 
         self.title = "escape machine"
         self.size = ( (self.columns + 1) * self.room_size,
                       (self.rows + 3) * self.room_size )
 
+        # generate maze
+        self.rooms = None
+        self.generate_maze()
+        
+    def _find_leaf_room( self ):
+        """check that maze has at least one leaf node room
+        """
+        for room in self.rooms.itervalues():
+            if len( room.connected ) == 1:
+                return True
+
+        return False
+
+    def generate_maze( self ):
+        """
+        """
+        # build maze and check for minimum number of rooms and at least
+        # one leaf node room to house an imprisoned ghost
+        self.rooms = {}
+        while( len( self.rooms ) < (self.rows * self.columns) / 4
+               or not self._find_leaf_room() ):
+            self._build_maze()
+
+    def _build_maze( self ):
         self.rooms = {}
         
         # pick random location and color for first room of maze
@@ -42,8 +69,17 @@ class Maze( Canvas ):
                 direction = directions.pop( randrange(0, len(directions)) )
                 self._grow_room( room, direction, growing )
 
+    def _fullness( self ):
+        max_rooms = self.rows * self.columns
+        return (len(self.rooms) * 100) / max_rooms 
+
     def _grow_room( self, seed, direction, growing ):
         #print "\n>>>growing from seed:", str(seed), "direction:", direction
+
+        # fail randomly to create new rooms increasingly often as number
+        # of rooms approaches maximum
+        if randrange( 0, 100 ) < self._fullness() - self.completeness:
+            return
         
         # get new room's location
         delta = self.DIRECTIONS[direction]
@@ -86,7 +122,8 @@ class Maze( Canvas ):
                 neighbor_free_colors = neighbor.get_free_colors()
                 combined_colors = set(free_colors) & set(neighbor_free_colors)
                 if( len( combined_colors ) > 0
-                    and neighbor.color not in neighbor_colors):
+                    and neighbor.color not in neighbor_colors
+                    and randrange(0, 100) > 99 - self.connectedness ):
                     neighbors[neighbor_dir] = neighbor
                     free_colors = list( combined_colors )
                     neighbor_colors.add( neighbor.color )
