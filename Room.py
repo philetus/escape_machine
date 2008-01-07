@@ -12,7 +12,13 @@ class Room:
         self.color = color
         self.size = size
 
+        # calculate centroid
+        self.centroid = tuple( (i + 2) * self.size for i in self.loc )
+        
         self.connected = {} # dictionary of connected rooms by direction
+
+        print "new room at loc %s coords %s" % ( str(self.loc),
+                                                 str(self.centroid) )
 
     def get_free_colors( self ):
         """return a list of colors not taken by self or neigbors
@@ -28,7 +34,7 @@ class Room:
         """draw room
         """
 
-        brush.move_to( *[self.loc[i] * (self.size + 2) for i in range(2)] )
+        brush.move_to( *self.centroid )
         brush.move_by( self.size / 2, self.size / 2 )
         
         brush.path_by( -self.size, 0 )

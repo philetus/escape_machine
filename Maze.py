@@ -12,16 +12,19 @@ class Maze( Canvas ):
     def __init__( self, gui, rows=5, columns=7, room_size=50 ):
         Canvas.__init__( self, gui ) # superclass constructor
 
-        self.size = (600, 400)
-        self.title = "escape machine"
         self.rows = rows
         self.columns = columns
         self.room_size = 50
 
+        self.title = "escape machine"
+        self.size = ( (self.columns + 3) * self.room_size,
+                      (self.rows + 3) * self.room_size )
+
         self.rooms = {}
         
         # pick random location and color for first room of maze
-        loc = ( randrange(0, self.rows), randrange(0, self.columns) )
+        print "creating seed room"
+        loc = ( randrange(0, self.columns), randrange(0, self.rows) )
         color = randrange( 0, 4 )
         room = Room( maze=self, loc=loc, color=color, size=self.room_size )
         self.rooms[loc] = room
@@ -45,8 +48,8 @@ class Maze( Canvas ):
         loc = tuple([ seed.loc[i] + delta[i] for i in range(2) ])
 
         # if new location is not in bounds return
-        if( loc[0] < 0 or loc[0] >= self.rows
-            or loc[1] < 0 or loc[1] >= self.columns ):
+        if( loc[0] < 0 or loc[0] >= self.columns
+            or loc[1] < 0 or loc[1] >= self.rows ):
             return
 
         # if there is already a room in new location return
