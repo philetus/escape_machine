@@ -4,5 +4,5 @@ from Maze import Maze
 gui = Gui()
 gui.start()
 
-maze = Maze( gui, completeness=10, connectedness=60 )
+maze = Maze( gui, completeness=0, connectedness=40 )
 maze.show()
