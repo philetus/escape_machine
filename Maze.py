@@ -10,6 +10,13 @@ class Maze( Canvas ):
     """
     DIRECTIONS = ( (1,0), (0,1), (-1,0), (0,-1) )
     BACKGROUND = (0.0, 0.0, 0.0, 1.0)
+    GO_COLOR = (0.0, 1.0, 0.0, 1.0)
+    GO_HALO_COLOR = (1.0, 0.5, 1.0, 1.0)
+    GO_HALO_THICKNESS = 6
+    ESCAPED_COLOR = (1.0, 1.0, 1.0, 1.0)
+    EATEN_COLOR = (1.0, 0.5, 1.0, 1.0)
+    FONT_SIZE = 18
+    FONT_WEIGHT = 0.6
     
     def __init__( self, gui,
                   state_machine = None,
@@ -26,12 +33,23 @@ class Maze( Canvas ):
 
         # set up window
         self.title = "escape machine"
-        self.size = ( (self.columns + 1) * self.room_size,
-                      (self.rows + 3) * self.room_size )
+        width = (self.columns + 1) * self.room_size
+        height = ((self.rows + 1) * self.room_size) + self.FONT_SIZE * 5
+        self.size = ( width, height )
 
         # maze score
         self.escaped = 0
         self.eaten = 0
+
+        text_x = width / 2
+        text_y = (self.rows + 1) * self.room_size
+        self.escaped_position = ( text_x, text_y )
+        self.eaten_position = ( text_x, text_y + (2 * self.FONT_SIZE) )
+
+        self.go_size = self.FONT_SIZE * 3
+        self.go_position = ( text_x - (self.go_size * 2), text_y )
+        self.go_center = tuple( p + self.go_size / 2 for p in self.go_position )
+        self.go_hover = False
         
         # game variables
         self.black_ghost = None
@@ -244,11 +262,62 @@ class Maze( Canvas ):
             x0, y0 = [ (i + 0.5) * size for i in room.loc ]
             brush.push_mask( x0, y0, x0 + size, y0 + size )
 
+            # move to center of room
+            brush.move_to( size / 2, size / 2 )
+
             # call room to draw itself
             room.handle_draw( brush )
 
             # pop mask
             brush.pop_mask()
+
+        self._draw_score( brush )
+
+    def _draw_score( self, brush ):
+        # draw score
+        brush.move_to( *self.go_position )
+        brush.path_by( 0, self.go_size )
+        brush.path_by( self.go_size, -self.go_size / 2 )
+        brush.close_path()
+        brush.color = self.GO_COLOR
+        brush.fill_path()
+        if self.go_hover:
+            brush.color = self.GO_HALO_COLOR
+            brush.size = self.GO_HALO_THICKNESS
+            brush.stroke_path()
+        brush.clear_path()
+
+        brush.font_size = self.FONT_SIZE
+        brush.font_weight = self.FONT_WEIGHT
+
+        brush.move_to( *self.escaped_position )
+        brush.text = "escaped: %d" % self.escaped
+        brush.text_path()
+        brush.color = self.ESCAPED_COLOR
+        brush.fill_path()
+        brush.clear_path()
+
+        brush.move_to( *self.eaten_position )
+        brush.text = "eaten: %d" % self.eaten
+        brush.text_path()
+        brush.color = self.EATEN_COLOR
+        brush.fill_path()
+        brush.clear_path()
+
+    def handle_motion( self, x, y ):
+        r = self.go_size / 2
+        go = True
+        for c, p in zip( self.go_center, (x, y) ):
+            if abs( c - p ) > r:
+                go = False
+
+        if go != self.go_hover:
+            self.go_hover = go
+            self.redraw()
+
+    def handle_release( self, x, y ):
+        if self.go_hover:
+            self.move_step()
 
     def handle_quit( self ):
         """say goodbye when we leave
