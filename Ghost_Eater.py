@@ -2,11 +2,13 @@ class Ghost_Eater:
     """
     """
     BODY_COLOR = (1.0, 0.5, 1.0, 1.0)
+    PURPLE_BODY_COLOR = (0.6, 0.0, 1.0, 1.0)
     HALO_COLOR = (0.0, 0.0, 0.0, 1.0)
 
     def __init__( self, loc, size ):
         self.loc = loc
         self.size = size
+        self.purple = False
 
     def handle_draw( self, brush ):
         """
@@ -25,7 +27,10 @@ class Ghost_Eater:
                        c1_dx=breadth - ginch, c1_dy=3 * ginch )
         brush.close_path()
 
-        brush.color = self.BODY_COLOR
+        if self.purple:
+            brush.color = self.PURPLE_BODY_COLOR
+        else:
+            brush.color = self.BODY_COLOR
         brush.fill_path()
         
         brush.color = self.HALO_COLOR

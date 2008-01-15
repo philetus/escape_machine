@@ -1,4 +1,7 @@
 from random import randrange
+from threading import Thread, Lock
+from Queue import Queue
+from time import sleep
 from l33tC4D.gui.Canvas import Canvas
 from Room import Room
 from Black_Ghost import Black_Ghost
@@ -11,15 +14,17 @@ class Maze( Canvas ):
     DIRECTIONS = ( (1,0), (0,1), (-1,0), (0,-1) )
     BACKGROUND = (0.0, 0.0, 0.0, 1.0)
     GO_COLOR = (0.0, 1.0, 0.0, 1.0)
+    DONT_GO_COLOR = (1.0, 0.8, 1.0, 1.0)
     GO_HALO_COLOR = (1.0, 0.5, 1.0, 1.0)
     GO_HALO_THICKNESS = 6
     ESCAPED_COLOR = (1.0, 1.0, 1.0, 1.0)
     EATEN_COLOR = (1.0, 0.5, 1.0, 1.0)
     FONT_SIZE = 18
     FONT_WEIGHT = 0.6
+    PURPLE_SLEEP = 1.0
+    BLACK_SLEEP = 1.0
     
     def __init__( self, gui,
-                  state_machine = None,
                   rows=5, columns=7, ghost_eaters=3,
                   completeness=10, connectedness=60,
                   room_size=80 ):
@@ -36,6 +41,10 @@ class Maze( Canvas ):
         width = (self.columns + 1) * self.room_size
         height = ((self.rows + 1) * self.room_size) + self.FONT_SIZE * 5
         self.size = ( width, height )
+
+        # color ranking to determine movements
+        self.color_lock = Lock()
+        self.color_ranking = None
 
         # maze score
         self.escaped = 0
@@ -54,11 +63,19 @@ class Maze( Canvas ):
         # game variables
         self.black_ghost = None
         self.ghost_eaters = [None] * ghost_eaters
+        self.purple_ghost_eaters = set()
         self.imprisoned_ghosts = set()
+        self.game_over = False
 
         # generate maze
         self.rooms = None
         self.generate_maze()
+
+        # start move thread
+        self.moving_flag = False
+        self.move_queue = Queue()
+        self.move_thread = Thread( target=self.handle_move )
+        self.move_thread.start()
 
     def generate_maze( self ):
         """
@@ -239,6 +256,148 @@ class Maze( Canvas ):
         for neighbor_dir, neighbor in neighbors.iteritems():
             room.connected[neighbor_dir] = neighbor
             neighbor.connected[(neighbor_dir + 2) % 4] = room
+
+    def rank_colors( self, ranking ):
+        """called to set new color rank
+        """
+        # hold color lock until new ranking is set
+        self.color_lock.acquire()
+        
+        self.color_ranking = ranking
+        self.redraw()
+        
+        self.color_lock.release()
+
+    def move_step( self ):
+        """move all characters one step according to current color ranking
+        """
+        # if still moving or game over don't really move
+        if self.moving_flag or self.game_over:
+            return
+        
+        # don't allow changes to color rank during copy
+        self.color_lock.acquire()
+        try:
+            ranking = {}
+            for i in range( 4 ):
+                ranking[i] = list( self.color_ranking[i] )
+        finally:
+            self.color_lock.release()
+
+        # set moving flag and put ranking on move queue
+        if ranking is not None:
+            self.moving_flag = True
+            self.move_queue.put( ranking )
+
+    def handle_move( self ):
+        """runs in separate thread and pulls ranking for each move off of queue
+        """
+        while True:
+            ranking = self.move_queue.get()
+
+            # if there are purple ghost eaters do premove
+            if self.purple_ghost_eaters:
+
+                # move each purple ghost eater
+                moving = set( self.purple_ghost_eaters )
+                self._move_eaters( moving, ranking )
+
+                # redraw and pause
+                self.redraw()
+                sleep( self.PURPLE_SLEEP )
+
+            # move all ghost eaters
+            moving = set( self.ghost_eaters )
+            self._move_eaters( moving, ranking )
+
+            self.redraw()
+            sleep( self.BLACK_SLEEP )
+
+            # move black ghost
+            self._move_black_ghost( ranking )
+            self.redraw()
+
+            self.moving_flag = False
+        
+    def _move_black_ghost( self, ranking ):
+        if not self.game_over:
+            print "\nmoving ghost at location", str(self.black_ghost.loc)
+
+            room = self.rooms[self.black_ghost.loc]
+            next_room = self._find_next_room( room, ranking )
+
+            if next_room is not None:
+                room.contains = None
+
+                # check if next room contains character
+                if isinstance( next_room.contains, Imprisoned_Ghost ):
+                    ghost = next_room.contains
+                    self.imprisoned_ghosts.remove( ghost )
+                    self.escaped += 1
+
+                # if there is a ghost eater in room is is eaten and
+                # this eater turns purple
+                elif isinstance( next_room.contains, Ghost_Eater ):
+                    self.game_over = True
+                    return
+
+                # move black ghost into room
+                next_room.contains = self.black_ghost
+                self.black_ghost.loc = next_room.loc
+        
+    def _move_eaters( self, moving, ranking ):
+        while moving:
+            eater = moving.pop()
+
+            print "\nmoving eater at location", str(eater.loc)
+            
+            room = self.rooms[eater.loc]
+            next_room = self._find_next_room( room, ranking, up=True )
+            if next_room is not None:
+
+                # check for character in room already
+                if isinstance( next_room.contains, Black_Ghost ):
+                    self.game_over = True
+
+                # if there is an imprisoned ghost in room it is eaten
+                elif isinstance( next_room.contains, Imprisoned_Ghost ):
+                    ghost = next_room.contains
+                    self.imprisoned_ghosts.remove( ghost )
+                    self.eaten += 1
+
+                # if there is a ghost eater in room is is eaten and
+                # this eater turns purple
+                elif isinstance( next_room.contains, Ghost_Eater ):
+                    chomped = next_room.contains
+                    self.ghost_eaters.remove( chomped )
+                    moving.discard( chomped )
+
+                    # make eater purple
+                    eater.purple = True
+                    self.purple_ghost_eaters.add( eater )
+
+                # move eater to new room
+                room.contains = None
+                next_room.contains = eater
+                eater.loc = next_room.loc
+
+    def _find_next_room( self, room, ranking, up=False ):
+        # get ordered list of colors to move to
+        colors = list( ranking[room.color] )
+        if not up:
+            colors.reverse()
+
+        # check if each color is connected to room
+        print "\tfinding colors:", str(colors),
+        print "\tin connected:", str( room.connected )
+        for color in colors:
+            for next_room in room.connected.itervalues():
+                if next_room.color == color:
+                    print "\tfound room:", str(next_room)
+                    return next_room
+
+        return None
+        
                 
     def handle_draw( self, brush ):
         """when a canvas redraw is triggered draw all rooms in maze
@@ -279,7 +438,10 @@ class Maze( Canvas ):
         brush.path_by( 0, self.go_size )
         brush.path_by( self.go_size, -self.go_size / 2 )
         brush.close_path()
-        brush.color = self.GO_COLOR
+        if self.color_ranking is None or self.game_over or self.moving_flag:
+            brush.color = self.DONT_GO_COLOR
+        else:
+            brush.color = self.GO_COLOR
         brush.fill_path()
         if self.go_hover:
             brush.color = self.GO_HALO_COLOR
