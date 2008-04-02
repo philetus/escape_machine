@@ -321,7 +321,7 @@ class Maze( Canvas ):
         
     def _move_black_ghost( self, ranking ):
         if not self.game_over:
-            print "\nmoving ghost at location", str(self.black_ghost.loc)
+            #print "\nmoving ghost at location", str(self.black_ghost.loc)
 
             room = self.rooms[self.black_ghost.loc]
             next_room = self._find_next_room( room, ranking )
@@ -349,7 +349,7 @@ class Maze( Canvas ):
         while moving:
             eater = moving.pop()
 
-            print "\nmoving eater at location", str(eater.loc)
+            #print "\nmoving eater at location", str(eater.loc)
             
             room = self.rooms[eater.loc]
             next_room = self._find_next_room( room, ranking, up=True )
@@ -388,12 +388,12 @@ class Maze( Canvas ):
             colors.reverse()
 
         # check if each color is connected to room
-        print "\tfinding colors:", str(colors),
-        print "\tin connected:", str( room.connected )
+        #print "\tfinding colors:", str(colors),
+        #print "\tin connected:", str( room.connected )
         for color in colors:
             for next_room in room.connected.itervalues():
                 if next_room.color == color:
-                    print "\tfound room:", str(next_room)
+                    #print "\tfound room:", str(next_room)
                     return next_room
 
         return None

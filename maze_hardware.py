@@ -36,4 +36,5 @@ maze.show()
 
 
 # assign color demon to update color ranking on assembly graph event
-color_demon = Color_Demon( maze, assembly_graph )
+color_demon = Color_Demon( maze, assembly_graph, gui )
+color_demon.show()
