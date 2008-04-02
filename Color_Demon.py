@@ -13,7 +13,7 @@ class Color_Demon( Canvas ):
                (0.0, 0.0, 1.0, 1.0),  # 2: blue
                (1.0, 1.0, 0.0, 1.0) ) # 3: yellow
 
-    def __init__( self, maze, assembly_graph, gui=None, room_size=30 ):
+    def __init__( self, assembly_graph, gui=None, room_size=30 ):
         self.draw_gui = False
         if gui is not None:
             self.draw_gui = True
@@ -26,7 +26,7 @@ class Color_Demon( Canvas ):
             height = self.room_size * 7.5
             self.size = ( width, height )
         
-        self.maze = maze
+        self.maze = None
         self.assembly_graph = assembly_graph
 
         # set rank colors method as graph observer
@@ -35,18 +35,20 @@ class Color_Demon( Canvas ):
         self.ranked_colors = { 0:[], 1:[], 2:[], 3:[] }
 
     def rank_colors( self, event ):
+        """callback triggered by assembly graph event to rank colors by z
         """
-        """
-        # acquire assembly graph lock
-        self.assembly_graph.lock.acquire()
+        if self.maze is not None:
+            
+            # acquire assembly graph lock
+            self.assembly_graph.lock.acquire()
 
-        try:
-            # set new ranking for maze
-            self.ranked_colors = self._build_color_list()
-            self.maze.rank_colors( self.ranked_colors )
+            try:
+                # set new ranking for maze
+                self.ranked_colors = self._build_color_list()
+                self.maze.rank_colors( self.ranked_colors )
 
-        finally:
-            self.assembly_graph.lock.release()
+            finally:
+                self.assembly_graph.lock.release()
 
         if self.draw_gui:
             self.redraw()

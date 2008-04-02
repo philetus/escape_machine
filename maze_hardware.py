@@ -30,11 +30,13 @@ gui = Gui()
 gui.start()
 
 # build maze
-maze = Maze( gui, rows=4, columns=7, ghost_eaters=3, room_size=80,
-             completeness=0, connectedness=50 )
+maze = Maze( gui, rows=3, columns=6, ghost_eaters=2, room_size=80,
+             completeness=20, connectedness=80 )
 maze.show()
 
 
 # assign color demon to update color ranking on assembly graph event
-color_demon = Color_Demon( maze, assembly_graph, gui )
+color_demon = Color_Demon( assembly_graph, gui )
 color_demon.show()
+
+color_demon.maze = maze

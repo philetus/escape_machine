@@ -24,17 +24,23 @@ class Maze( Canvas ):
     PURPLE_SLEEP = 1.0
     BLACK_SLEEP = 1.0
     
-    def __init__( self, gui,
+    def __init__( self, gui, next=None,
                   rows=5, columns=7, ghost_eaters=3,
                   completeness=10, connectedness=60,
-                  room_size=80 ):
+                  room_size=80,
+                  escaped=0, eaten=0 ):
         Canvas.__init__( self, gui ) # superclass constructor
-
+        
+        self.next = next # function to move to next level
         self.rows = rows
         self.columns = columns
         self.room_size = room_size
         self.completeness = completeness
         self.connectedness = connectedness
+
+        # game score
+        self.escaped = escaped
+        self.eaten = eaten
 
         # set up window
         self.title = "escape machine"
@@ -45,10 +51,6 @@ class Maze( Canvas ):
         # color ranking to determine movements
         self.color_lock = Lock()
         self.color_ranking = None
-
-        # maze score
-        self.escaped = 0
-        self.eaten = 0
 
         text_x = width / 2
         text_y = (self.rows + 1) * self.room_size
@@ -276,11 +278,13 @@ class Maze( Canvas ):
             return
         
         # don't allow changes to color rank during copy
+        ranking = None
         self.color_lock.acquire()
         try:
-            ranking = {}
-            for i in range( 4 ):
-                ranking[i] = list( self.color_ranking[i] )
+            if self.color_ranking is not None:
+                ranking = {}
+                for i in range( 4 ):
+                    ranking[i] = list( self.color_ranking[i] )
         finally:
             self.color_lock.release()
 
@@ -339,6 +343,7 @@ class Maze( Canvas ):
                 # this eater turns purple
                 elif isinstance( next_room.contains, Ghost_Eater ):
                     self.game_over = True
+                    print "you stumbled into a ghost eater: game over!"
                     return
 
                 # move black ghost into room
@@ -358,6 +363,7 @@ class Maze( Canvas ):
                 # check for character in room already
                 if isinstance( next_room.contains, Black_Ghost ):
                     self.game_over = True
+                    print "the ghost eaters got you: game over!"
 
                 # if there is an imprisoned ghost in room it is eaten
                 elif isinstance( next_room.contains, Imprisoned_Ghost ):
@@ -486,5 +492,8 @@ class Maze( Canvas ):
         """
         print "bye!"
 
-        # really close the window
+        # call next to build next level
+        self.next( self.game_over, self.escaped, self.eaten )
+
+        # don't really close the window
         return True
