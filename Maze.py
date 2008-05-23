@@ -371,11 +371,14 @@ class Maze( Canvas ):
                     self.imprisoned_ghosts.remove( ghost )
                     self.eaten += 1
 
-                # if there is a ghost eater in room is is eaten and
+                # if there is a ghost eater in room it is eaten and
                 # this eater turns purple
                 elif isinstance( next_room.contains, Ghost_Eater ):
                     chomped = next_room.contains
-                    self.ghost_eaters.remove( chomped )
+                    if chomped in self.ghost_eaters:
+                        self.ghost_eaters.remove( chomped )
+                    else:
+                        print "WTF? chomped ghost eater awol!"
                     moving.discard( chomped )
 
                     # make eater purple

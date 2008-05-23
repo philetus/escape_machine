@@ -128,6 +128,16 @@ class Color_Demon( Canvas ):
             print "can't see 4 hubs!"
             return None
 
+        struts = list( p for p in subgraph.parts if p.type == "strut" )
+        if len(hubs) != 4:
+            print "can't see 4 struts!"
+            return None
+
+        for strut in struts:
+            if len(strut.get_connected()) != 2:
+                print "strut not connected to two hubs!"
+                return None
+
         # update color rankings
         for hub in hubs:
 
